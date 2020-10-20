@@ -418,7 +418,7 @@ for n in range(instanceNum):
 
     a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
     r1 = a1.referencePoints
-    refPoints1=(r1[14], )
+    refPoints1=(r1[14],)
     #refPoints1=(base_length,-(base_thickness+5),0.0)
     region1=a1.Set(referencePoints=refPoints1, name='Ref_Point')
     
@@ -507,9 +507,11 @@ for n in range(instanceNum):
     mdb.models[str('Model-{}'.format(n + 1))].StaticStep(name='Step-Pressure',
                                                          previous='Initial',
                                                          nlgeom=ON)
+
     regionDef=mdb.models[str('Model-{}'.format(n + 1))].rootAssembly.sets['Ref_Point']
     mdb.models[str('Model-{}'.format(n + 1))].fieldOutputRequests['F-Output-1'].setValues(variables=(
         'RF', 'CFORCE'), region=regionDef, sectionPoints=DEFAULT, rebar=EXCLUDE)
+
     fixedFace = a.instances['Merged-Body-1'].edges.findAt(
         ((0.0, wall_height / 2, 0.0),), )
     fixedFaceRegion = a.Set(edges=fixedFace, name='Set-FixedFace')
@@ -641,7 +643,7 @@ for n in range(instanceNum):
     
 
     # Data force
-    
+    '''
     forceField = frame.fieldOutputs['RF']
     forceSubField = forceField.getSubset(region=Ref_Point)
     force = forceSubField.values[0].RF2
@@ -653,6 +655,7 @@ for n in range(instanceNum):
     f = open(str(result_dir + result_name + ".csv"), "a")
     f.write(str(str(force) + "\n"))
     
+    '''
     
 
     ''' 
