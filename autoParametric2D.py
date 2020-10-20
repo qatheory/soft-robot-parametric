@@ -13,7 +13,7 @@ autoComputeMode = getWarningReply(
     buttons=(YES, NO))
 fields = (
     ('Chieu day nap:', '2.5'),
-    ('Chieu cao:', '12'),
+    ('Chieu cao:', '20'),
     ('Do day dau tay gap:', '6.5'),
     ('Do day cuoi tay gap:', '4'),
     ('Chieu dai cac khoang:', '5'),
