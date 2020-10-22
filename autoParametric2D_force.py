@@ -31,7 +31,7 @@ result_dir, result_name = getInputs(
     dialogTitle='Cau hinh luu tru',
 )
 
-instanceNum = 1
+instanceNum = 3
 for n in range(instanceNum):
     mdb.Model(name='Model-{}'.format(n + 1), modelType=STANDARD_EXPLICIT)
 
@@ -582,10 +582,11 @@ for n in range(instanceNum):
     p.seedPart(size=seedSize, deviationFactor=0.1, minSizeFactor=0.1)
     p.generateMesh()
     a.regenerate()
-    all_nodes = p.nodes
-    end_nodes = []
-    #end_nodes = all_nodes.findAt(((base_length,-(base_thickness+5),0.0),),)
     
+    '''
+    all_nodes = p.nodes
+    end_node =  []
+
     for node_count in all_nodes:
         xcoord = node_count.coordinates[0]
         ycoord = node_count.coordinates[1]
@@ -596,7 +597,7 @@ for n in range(instanceNum):
     
     good_left_nodes = mesh.MeshNodeArray(end_nodes)
     p.Set(nodes=good_left_nodes, name='Set-Node')
-    
+    '''
     session.viewports['Viewport: 1'].setValues(displayedObject=a)
     session.viewports['Viewport: 1'].view.setViewpoint(viewVector=(0, 0, 1),
                                                        cameraUpVector=(0, 1,
@@ -638,7 +639,7 @@ for n in range(instanceNum):
     gripperSimulation.waitForCompletion()
     myOdb = visualization.openOdb(path=str('Job-{}'.format(n + 1)) + '.odb')
     
-    centerNSet = myOdb.rootAssembly.instances['MERGED-BODY-1'].nodeSets["SET-NODE"]
+    #centerNSet = myOdb.rootAssembly.instances['MERGED-BODY-1'].nodeSets["SET-NODE"]
     frame = myOdb.steps['Step-Pressure'].frames[-1]
     
 
