@@ -583,7 +583,7 @@ for n in range(instanceNum):
     p.generateMesh()
     a.regenerate()
     all_nodes = p.nodes
-    end_node =  []
+    end_nodes = []
     #end_nodes = all_nodes.findAt(((base_length,-(base_thickness+5),0.0),),)
     
     for node_count in all_nodes:
@@ -643,19 +643,18 @@ for n in range(instanceNum):
     
 
     # Data force
-    '''
+  
     forceField = frame.fieldOutputs['RF']
-    forceSubField = forceField.getSubset(region=Ref_Point)
-    force = forceSubField.values[0].RF2
-    session.viewports['Viewport: 1'].setValues(displayedObject=myOdb)
-    session.viewports['Viewport: 1'].odbDisplay.display.setValues(plotState=(
-    CONTOURS_ON_DEF, ))
-    session.viewports['Viewport: 1'].odbDisplay.contourOptions.setValues(
-    showMaxLocation=ON)
+    #forceSubField = forceField.getSubset(region=Ref_Point)
+    forceValue = forceField.values
+    for v in forceValue:
+        a = v.data[1]
+        force = [a]
+        break
     f = open(str(result_dir + result_name + ".csv"), "a")
-    f.write(str(str(force) + "\n"))
+    f.write(str(str(force[0]) + "\n"))
     
-    '''
+    
     
 
     ''' 
