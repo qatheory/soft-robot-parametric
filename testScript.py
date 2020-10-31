@@ -1,14 +1,15 @@
+from config.parameter import parameter
+from driverUtils import executeOnCaeStartup
+from caeModules import *
+from abaqusConstants import *
+from abaqus import *
 import sys
 import os
 dir_path = os.path.dirname(os.path.realpath('__file__'))
 sys.path.append(dir_path)
-from abaqus import *
-from abaqusConstants import *
-
+# dir_path = os.path.dirname(os.path.realpath('__file__'))
+# sys.path.append(dir_path)
 # import CAE library Abaqus
-from caeModules import *
-from driverUtils import executeOnCaeStartup
-from config.parameter import parameter
 s = mdb.models['Model-1'].ConstrainedSketch(name='__profile__',
                                             sheetSize=200.0)
 s.rectangle(point1=(0.0, 0.0),

@@ -23,7 +23,7 @@ infoFields = (
 #     label='Thong so cau hinh:',
 #     dialogTitle='Cau hinh mo phong',
 # )
-result_dir = "E:\NCKH\soft_robot\Optimisation\\"
+result_dir = "./"
 result_name = "force_output"
 # result_dir, result_name = getInputs(
 #     fields=(("Vi tri luu ket qua:", "E:\NCKH\soft_robot\Optimisation\\"),
@@ -32,10 +32,9 @@ result_name = "force_output"
 #     dialogTitle='Cau hinh luu tru',
 # )
 ForcesFile = open(str(result_dir + result_name + ".csv"), "w")
-instanceNum = 2
+instanceNum = 1
 for n in range(instanceNum):
     mdb.Model(name='Model-{}'.format(n + 1), modelType=STANDARD_EXPLICIT)
-
     base_length = None
     base_thickness = 2.5
     wall_length = None
@@ -53,7 +52,6 @@ for n in range(instanceNum):
     chamber_tunnelHeight = 0
     chamber_upperCoverThickness = 2
     chamber_underCoverThickness = 0.5
-
     chamber_baseHeight = wall_height - chamber_height
     skin_thickness = 0.1
     pressure = 0.01
@@ -353,7 +351,7 @@ for n in range(instanceNum):
     a.translate(instanceList=('Base-B', ),
                 vector=(0.0, -(base_thickness * 2), 0.0))
     a.translate(instanceList=('Paper', ), vector=(0.0, -base_thickness, 0.0))
-    #SingleInstances_List = mdb.models[str(
+    # SingleInstances_List = mdb.models[str(
     #    'Model-{}'.format(n + 1))].rootAssembly.instances.keys()
     a.InstanceFromBooleanMerge(
         name='Merged-Body',
@@ -418,7 +416,7 @@ for n in range(instanceNum):
     a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
     r1 = a1.referencePoints
     refPoints1 = (r1[14], )
-    #refPoints1=(base_length,-(base_thickness+5),0.0)
+    # refPoints1=(base_length,-(base_thickness+5),0.0)
     region1 = a1.Set(referencePoints=refPoints1, name='Ref_Point')
 
     # Interaction
@@ -697,3 +695,4 @@ for n in range(instanceNum):
     
     '''
 ForcesFile.close()
+print >> sys.__stdout__, 'Im Okay'
