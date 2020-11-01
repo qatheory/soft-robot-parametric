@@ -68,7 +68,7 @@ for n in range(instanceNum):
     CPUs = 4
     GPUs = 1
     ram = 90
-    if base_length == None:
+    if base_length == None or base_length == None:
         base_length = chamber_fisrtLength + chamber_lastLength + chamber_size * chamber_num + chamber_space * (
             chamber_num + 1)
         wall_length = base_length
