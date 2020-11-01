@@ -1,0 +1,8 @@
+function u = tinhChuyenVi(n,p1,p2,p3)
+    fid = fopen('parameters.csv', 'wt');
+    fprintf(
+    fprintf(fid, '%s', OutputData{1,1}, OutputData{1,2});
+    
+%     !abaqus cae script=./autoParametric2DnoGUItest.py
+end
+
