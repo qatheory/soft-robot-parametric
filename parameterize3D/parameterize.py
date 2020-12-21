@@ -8,6 +8,37 @@ base_width = 5.0
 base_thickness = 0.5
 
 currentModel = mdb.models["Model-1"]
+assembly = currentModel.rootAssembly
+
+
+class Instances(object):
+    def __init__(self, name, part):
+        self.name = name
+        self.position = (0.0, 0.0, 0.0)
+        self.createInstance(name, part)
+
+    def createInstance(self, name, part):
+        assembly.Instance(name=name, part=part.getPart(), dependent=ON)
+
+    def translate(self, vector):
+        self.get().translate(instanceList=(self.name, ), vector=vector)
+
+    def rotate(self, vector, angle):
+        point1 = (0.0, 0.0, 0.0)
+        point2 = (0.0, 0.0, 0.0)
+        if vector == "x":
+            point2 = (1.0, 0.0, 0.0)
+        if vector == "y":
+            point2 = (0.0, 1.0, 0.0)
+        if vector == "z":
+            point2 = (0.0, 0.0, 1.0)
+        self.get().rotate(instanceList=(self.name, ),
+                          axisPoint=point1,
+                          axisDirection=point2,
+                          angle=angle)
+
+    def get(self):
+        return assembly.instances[self.name]
 
 
 class Material(object):
@@ -131,7 +162,6 @@ class Sketch(object):
 
 class Object(object):
     def __init__(self, name):
-        self.position = [0.0, 0.0, 0.0]
         self.part = None
         self.name = name
         # self.sketchName = "{}_sketch".format(name)
@@ -144,8 +174,8 @@ class Object(object):
     def getName(self):
         return self.name
 
-    def setName(self, name):
-        self.name = name
+    def getPartName(self):
+        return self.partName
 
     def move(self, pos):
         print("moved")
@@ -160,7 +190,7 @@ class Object(object):
         return(currentModel.parts[self.partName])
 
     def assignSection(self, section):
-        objectCell = self.getPart().cells.findAt((tuple(self.position), ), )
+        objectCell = self.getPart().cells.findAt(((0.0, 0.0, 0.0), ), )
         objectRegion = self.getPart().Set(cells=objectCell, name=self.set)
         self.getPart().SectionAssignment(region=objectRegion,
                                          sectionName=section.getName(),
@@ -174,15 +204,19 @@ class Object(object):
         return "added material"
 
 
-class Base(Object):
+class BasePart(Object):
     def __init__(self, name, length=0.0, width=0.0, thickness=0.0):
-        super(Base, self).__init__(name)
+        super(BasePart, self).__init__(name)
         self.length = length
         self.width = width
         self.thickness = thickness
         self.name = name
         self.drawSketch()
         self.buildPart()
+
+    # def setPosInAssembly(self):
+    def getParameters(self):
+        return {"length": self.length, "width": self.width, "thickness": self.thickness}
 
     def selectSurface(self, surface="bottom"):
         if(surface == "top"):
@@ -215,9 +249,9 @@ class Base(Object):
         return
 
 
-class Main(Object):
-    def __init__(self, name, length=0.0, wide=0.0, height=0.0, chamberNum=3, chamberSize=0.0, chamberHeight=0.0, space=0.0, heightSpace=0.0, chamberThickness=0.0, innerHeight=0.0):
-        super(Main, self).__init__(name)
+class MainPart(Object):
+    def __init__(self, name, length=0.0, wide=0.0, height=0.0, chamberNum=3, chamberSize=0.0, chamberHeight=0.0, space=0.0, heightSpace=0.0, chamberThickness=0.0, innerHeight=0.0, tunnelWidth=0.0, tunnelHeight=0.0):
+        super(MainPart, self).__init__(name)
         self.length = length
         self.wide = wide
         self.height = height
@@ -227,9 +261,13 @@ class Main(Object):
         self.chamberThickness = chamberThickness
         self.innerHeight = innerHeight
         self.space = space
+        self.tunnelWidth = tunnelWidth
+        self.tunnelHeight = tunnelHeight
+        self.tunnelLength = length - chamberThickness*2 - chamberSize*2
         # self.heightSpace = heightSpace
         self.drawSketch()
         self.buildPart()
+        self.extrudeCut()
 
     def drawSketch(self):
         self.sketch.lineTo(0, self.height)
@@ -261,18 +299,24 @@ class Main(Object):
     def extrudeCut(self):
         extrudeCutFace = self.getPart().faces.findAt(
             ((self.length/2, 0.0, self.wide/2),),)
-        extrudeCutEdge = self.getPart().edges.findAt(
-            ((self.length/2, 0.0, 0.0),),)
         surfaceName = 'Bottom of {}'.format(self.name)
         self.getPart().Surface(side1Faces=extrudeCutFace, name=surfaceName)
         transform = self.getPart().MakeSketchTransform(sketchPlane=self.getPart().surfaces[surfaceName].faces[0], sketchUpEdge=self.getPart().edges[34],
                                                        sketchPlaneSide=SIDE1, sketchOrientation=TOP, origin=(0.0, 0.0, 0.0))
-        cutSketch = Sketch("wallCutSketch", transform)
+        cutChamberSketch = Sketch("wallCutSketch", transform)
         for i in range(self.chamberNum):
-            cutSketch.get().rectangle((self.chamberThickness+self.chamberSize*i+self.space*i, self.chamberThickness),
-                                      (self.chamberSize*(i+1) + self.space*i - self.chamberThickness, self.wide - self.chamberThickness))
+            cutChamberSketch.get().rectangle((self.chamberThickness+self.chamberSize*i+self.space*i, self.chamberThickness),
+                                             (self.chamberSize*(i+1) + self.space*i - self.chamberThickness, self.wide - self.chamberThickness))
+
+        cutTunnelSketch = Sketch("wallTunnelSketch", transform)
+        cutTunnelSketch.get().rectangle((self.chamberThickness, self.wide/2-self.tunnelWidth/2),
+                                        (self.length - self.chamberThickness, self.wide/2+self.tunnelWidth/2))
         self.getPart().CutExtrude(sketchPlane=self.getPart().surfaces[surfaceName].faces[0],
-                                  sketchPlaneSide=SIDE1, sketchUpEdge=self.getPart().edges[34], sketchOrientation=TOP, sketch=cutSketch.get(), depth=6)
+                                  sketchPlaneSide=SIDE1, sketchUpEdge=self.getPart().edges[34], sketchOrientation=TOP, sketch=cutChamberSketch.get(), depth=self.innerHeight)
+        self.getPart().CutExtrude(sketchPlane=self.getPart().surfaces[surfaceName].faces[0],
+                                  sketchPlaneSide=SIDE1, sketchUpEdge=self.getPart().edges[34], sketchOrientation=TOP, sketch=cutTunnelSketch.get(), depth=self.tunnelHeight)
+
+
 # Process code
 
 
@@ -282,11 +326,13 @@ Paper = Material("Paper", 7.5e-10, "paper")
 ElastosilSection = Section("Sec-Elastosil", Elastosil, "solid")
 PaperSection = Section("Sec-Paper", Paper, "shell", 0.1)
 
-BaseA = Base("Base-A", 100, 50, 5)
-BaseA.assignSection(ElastosilSection)
-BaseA.selectSurface("top")
-BaseB = Base("Base-B", 40, 20, 5)
-BaseB.assignSection(ElastosilSection)
-BaseB.selectSurface()
-MainBody = Main("Main", 95, 10, 10, 5, 15, 7, 5, 0.0, 1)
-MainBody.extrudeCut()
+Base = BasePart("Base-A", 10, 10, 1)
+Base.assignSection(ElastosilSection)
+Base.selectSurface("top")
+Main = MainPart("Main", 95, 10, 10, 5, 15, 7, 5, 0.0, 1, 9, 4, 1)
+Main.assignSection(ElastosilSection)
+Base1 = Instances("Base-1", Base)
+Base1.translate((0.0, 0.0, -Base.getParameters()["thickness"]))
+Base2 = Instances("Base-2", Base)
+Base2.translate((0.0, 0.0, -Base.getParameters()["thickness"]*2))
+Main1 = Instances("Main-1", Main)
