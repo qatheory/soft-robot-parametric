@@ -1,6 +1,7 @@
 from abaqus import *
 from abaqusConstants import *
 from odbAccess import *
+
 # set viewport
 session.Viewport(name='Viewport: 1',
                  origin=(0.0, 0.0),
@@ -8,107 +9,66 @@ session.Viewport(name='Viewport: 1',
                  height=126.907554626465)
 session.viewports['Viewport: 1'].makeCurrent()
 session.viewports['Viewport: 1'].maximize()
-autoComputeMode = getWarningReply(
-    message='Tinh toan tu dong dua tren thong so da cai dat?',
-    buttons=(YES, NO))
-fields = (
-    ('Chieu day nap:', '3.5'),
-    ('Chieu cao:', '12'),
-    ('Do day dau tay gap:', '6.5'),
-    ('Do day cuoi tay gap:', '4'),
-    ('Chieu dai cac khoang:', '5'),
-    ('Chieu dai khoang dau:', '10'),
-    ('Chieu dai khoang cuoi:', '15.0'),
-    ('Khoang cach giua cac khoang:', '1'),
-    ('Chieu cao cac ranh:', '9'),
-    ('So luong khoang giua:', '10'),
-    ('Do day tuong bao cac khoang:', '1.5'),
-    ('Do day dinh khoang:', '2'),
-    ('Do day lop giay:', '0.1'),
-    ('Ap suat:', '0.01'),
-)
-#Ibase_thickness, Iwall_height, Iwall_boundariesThickness_head, Iwall_boundariesThickness_tail, Ichamber_size, Ichamber_fisrtLength, Ichamber_lastLength, Ichamber_space, Ichamber_height, Ichamber_num, Ichamber_wallThickness, Ichamber_upperCoverThickness, Iskin_thickness, Ipressure = 0
-if autoComputeMode == NO:
-    Ibase_thickness, Iwall_height, Iwall_boundariesThickness_head, Iwall_boundariesThickness_tail, Ichamber_size, Ichamber_fisrtLength, Ichamber_lastLength, Ichamber_space, Ichamber_height, Ichamber_num, Ichamber_wallThickness, Ichamber_upperCoverThickness, Iskin_thickness, Ipressure = getInputs(
-        fields=fields,
-        label='Thong so tay gap:',
-        dialogTitle='Tao tay gap',
-    )
+
+# Ibase_thickness, Iwall_height, Iwall_boundariesThickness_head, Iwall_boundariesThickness_tail, Ichamber_size, Ichamber_fisrtLength, Ichamber_lastLength, Ichamber_space, Ichamber_height, Ichamber_num, Ichamber_wallThickness, Ichamber_upperCoverThickness, Iskin_thickness, Ipressure = 0
+
 infoFields = (
     ('So luong CPU duoc phep hoat dong:', '2'),
     ('So luong GPU duoc phep hoat dong:', '1'),
     ('% RAM duoc phep su dung:', '90'),
 )
-ICPUs, IGPUs, IRAMs = getInputs(
-    fields=infoFields,
-    label='Thong so cau hinh:',
-    dialogTitle='Cau hinh mo phong',
-)
-result_dir, result_name = getInputs(
-    fields=(("Vi tri luu ket qua:", "D:\\"), ("Ten file:",
-                                              "displacement_data")),
-    label='Nhap duong dan den vi tri luu ket qua:',
-    dialogTitle='Cau hinh luu tru',
-)
 
-resultFile = open(str(result_dir + result_name + ".csv"), "w")
-
+# ICPUs, IGPUs, IRAMs = getInputs(
+#     fields=infoFields,
+#     label='Thong so cau hinh:',
+#     dialogTitle='Cau hinh mo phong',
+# )
+result_dir = "E:\NCKH\soft_robot\Optimisation\\"
+result_name = "force_output"
+# result_dir, result_name = getInputs(
+#     fields=(("Vi tri luu ket qua:", "E:\NCKH\soft_robot\Optimisation\\"),
+#             ("Ten file:", "force_output")),
+#     label='Nhap duong dan den vi tri luu ket qua:',
+#     dialogTitle='Cau hinh luu tru',
+# )
+ForcesFile = open(str(result_dir + result_name + ".csv"), "w")
 instanceNum = 2
-if autoComputeMode == NO:
-    instanceNum = 1
-
 for n in range(instanceNum):
     mdb.Model(name='Model-{}'.format(n + 1), modelType=STANDARD_EXPLICIT)
-
     base_length = None
     base_thickness = 2.5
     wall_length = None
     wall_height = 12
     wall_boundariesThickness_head = 6.5
     wall_boundariesThickness_tail = 4
-    chamber_size = 5 + n
+    chamber_size = 1.45 + n * 0.05  # chieu rong khoang
     chamber_fisrtLength = 10.0
     chamber_lastLength = 15.0
     chamber_space = 1
     chamber_height = 9
-    chamber_num = 3
-    chamber_wallThickness = 1
+    chamber_num = 3  # so khoang +2
+    chamber_wallThickness = 0.5  # chieu day thanh
     chamber_tunnelWidth = 2
     chamber_tunnelHeight = 0
     chamber_upperCoverThickness = 2
-    chamber_underCoverThickness = 1
-
+    chamber_underCoverThickness = 0.5
     chamber_baseHeight = wall_height - chamber_height
     skin_thickness = 0.1
     pressure = 0.01
 
+    # Mesh
+
     seedSize = 3
 
-    if autoComputeMode == NO:
-        base_length = None
-        base_thickness = float(Ibase_thickness)
-        wall_length = None
-        wall_height = float(Iwall_height)
-        wall_boundariesThickness_head = float(Iwall_boundariesThickness_head)
-        wall_boundariesThickness_tail = float(Iwall_boundariesThickness_tail)
-        chamber_size = float(Ichamber_size)
-        chamber_fisrtLength = float(Ichamber_fisrtLength)
-        chamber_lastLength = float(Ichamber_lastLength)
-        chamber_space = float(Ichamber_space)
-        chamber_height = float(Ichamber_height)
-        chamber_num = int(Ichamber_num)
-        chamber_wallThickness = float(Ichamber_wallThickness)
-        chamber_upperCoverThickness = float(Ichamber_upperCoverThickness)
-        chamber_tunnelHeight = 0
-        chamber_baseHeight = wall_height - chamber_height
-        skin_thickness = float(Iskin_thickness)
-        pressure = float(Ipressure)
+    ###
 
-    CPUs = int(ICPUs)
-    GPUs = int(IGPUs)
-    ram = int(IRAMs)
-
-    if base_length == None:
+    # CPUs = int(ICPUs)
+    # GPUs = int(IGPUs)
+    # ram = int(IRAMs)
+    CPUs = 4
+    GPUs = 1
+    ram = 90
+    if base_length == None or base_length == None:
         base_length = chamber_fisrtLength + chamber_lastLength + chamber_size * chamber_num + chamber_space * (
             chamber_num + 1)
         wall_length = base_length
@@ -124,6 +84,7 @@ for n in range(instanceNum):
     mdb.models[str(
         'Model-{}'.format(n + 1))].materials['Paper'].Elastic(table=((6500.0,
                                                                       0.2), ))
+
     mdb.models[str('Model-{}'.format(n + 1))].Material(name='Elastosil')
     mdb.models[str('Model-{}'.format(n + 1))].materials['Elastosil'].Density(
         table=((1.13e-09, ), ))
@@ -139,11 +100,17 @@ for n in range(instanceNum):
     mdb.models[str('Model-{}'.format(n + 1))].HomogeneousSolidSection(
         name='Sec-Paper', material='Paper', thickness=None)
 
+    mdb.models[str('Model-{}'.format(n + 1))].Material(name='Steel')
+    mdb.models[str('Model-{}'.format(n + 1))].materials['Steel'].Density(table=((7.825e-06, ), ))
+    mdb.models[str('Model-{}'.format(n + 1))].materials['Steel'].Elastic(table=((206940000.0, 0.3), ))
+    mdb.models[str('Model-{}'.format(n + 1))].HomogeneousSolidSection(name='Section-steel', 
+        material='Steel', thickness=None)
+
     mainBodySketch = mdb.models[str(
         'Model-{}'.format(n + 1))].ConstrainedSketch(name='__profile__',
                                                      sheetSize=200.0)
 
-    #Out boundaries
+    # Out boundaries
 
     mainBodySketch.Line(point1=(0.0, 0.0), point2=(0.0, wall_height))
     mainBodySketch.Line(point1=(0.0, wall_height),
@@ -340,9 +307,39 @@ for n in range(instanceNum):
     BaseBEdge = BaseBPart.edges.findAt(
         ((base_length / 2, base_thickness, 0), ), )
     BaseBPart.Surface(side1Edges=BaseBEdge, name='Top-of-B')
+
+    # Base-C
+
+    BaseSketchC = mdb.models[str('Model-{}'.format(n + 1))].ConstrainedSketch(
+        name='__profile__', sheetSize=200.0)
+    BaseSketchC.rectangle(point1=(0.0, 0.0), point2=(10, 1))
+    BaseAPartPart = mdb.models[str('Model-{}'.format(n + 1))].Part(
+        name='Base-C', dimensionality=TWO_D_PLANAR, type=DEFORMABLE_BODY)
+    BaseCPart = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    BaseCPart.BaseShell(sketch=BaseSketchC)
+
+    BaseCFaces = BaseCPart.faces.findAt(((0, 0, 0), ), )
+    BaseCRegion = BaseCPart.Set(faces=BaseCFaces, name='Set-Base-C')
+    BaseCPart.SectionAssignment(region=BaseCRegion,
+                                sectionName='Section-steel',
+                                offset=0.0,
+                                offsetType=MIDDLE_SURFACE,
+                                offsetField='',
+                                thicknessAssignment=FROM_SECTION)
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    s = p.edges
+    topedgebaseC = s.findAt(((10.0, 1, 0), ), )
+    p.Surface(side1Edges=topedgebaseC, name='Top-Suf-BaseC')
+    p.regenerate()
+    '''
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    e = p.edges
+    edge = e.findAt(((5.0,5.0,0),),)  
+    p.set(edges= edge , name = 'Set-Contact-Force')
+    
     # Clean Base sketch
     del mdb.models[str('Model-{}'.format(n + 1))].sketches['__profile__']
-
+    '''
     # create Assembly
     a = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
     a.DatumCsysByDefault(CARTESIAN)
@@ -350,23 +347,34 @@ for n in range(instanceNum):
     a.Instance(name='Base-B', part=BaseBPart, dependent=ON)
     a.Instance(name='Main-Body', part=mainBodyPart, dependent=ON)
     a.Instance(name='Paper', part=PaperPart, dependent=ON)
+    a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    a1.Instance(name='Base-C', part=p, dependent=ON)
+    p = a1.instances['Base-C']
+    p.translate(vector=(base_length - 5, (-2 * base_thickness - 1), 0.0))
+
     a.translate(instanceList=('Base-A', ),
                 vector=(0.0, -base_thickness + skin_thickness, 0.0))
     a.translate(instanceList=('Base-B', ),
                 vector=(0.0, -(base_thickness * 2), 0.0))
     a.translate(instanceList=('Paper', ), vector=(0.0, -base_thickness, 0.0))
-    SingleInstances_List = mdb.models[str(
-        'Model-{}'.format(n + 1))].rootAssembly.instances.keys()
-    a.InstanceFromBooleanMerge(name='Merged-Body',
-                               instances=([
-                                   a.instances[SingleInstances_List[i]]
-                                   for i in range(len(SingleInstances_List))
-                               ]),
-                               originalInstances=SUPPRESS,
-                               domain=GEOMETRY,
-                               keepIntersections=ON)
+    # SingleInstances_List = mdb.models[str(
+    #    'Model-{}'.format(n + 1))].rootAssembly.instances.keys()
+    a.InstanceFromBooleanMerge(
+        name='Merged-Body',
+        instances=(a.instances['Base-A'], a.instances['Base-B'],
+                   a.instances['Paper'], a.instances['Main-Body']),
+        originalInstances=SUPPRESS,
+        domain=GEOMETRY,
+        keepIntersections=ON)
     MergedBody = mdb.models[str('Model-{}'.format(n + 1))].parts['Merged-Body']
-    #Select InnerSurface
+    '''
+    a4 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    e1 = a4.instances['Base-C'].edges
+    a4.ReferencePoint(
+        point=a4.instances['Base-C'].InterestingPoint(edge=e1[0], rule=MIDDLE))
+    '''
+    # Select InnerSurface
     InnerSurfCavity = MergedBody.edges.findAt(
         ((wall_boundariesThickness_head +
           (chamber_fisrtLength - chamber_wallThickness -
@@ -406,8 +414,78 @@ for n in range(instanceNum):
               (i + 1) + chamber_size * i +
               (chamber_size - chamber_wallThickness * 2) / 2, 0.0, 0.0), ), )
 
+    bottomMerge = MergedBody.edges.findAt(((5.0, -5.0, 0), ), )
+    MergedBody.Surface(side1Edges=bottomMerge, name='Surf-Bot-Mer')
     MergedBody.Surface(side1Edges=InnerSurfCavity, name='Surf-Inner Cavity')
     a.regenerate()
+
+    # referencePoints
+    '''
+    a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    r1 = a1.referencePoints
+    refPoints1 = (r1[14], )
+    # refPoints1=(base_length,-(base_thickness+5),0.0)
+    region1 = a1.Set(referencePoints=refPoints1, name='Ref_Point')
+
+    # Interaction
+
+    a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    region2 = a1.instances['Base-C'].surfaces['Top-Suf-BaseC']
+    mdb.models[str('Model-{}'.format(n + 1))].Coupling(
+        name='Coupling',
+        controlPoint=region1,
+        surface=region2,
+        influenceRadius=WHOLE_SURFACE,
+        couplingType=KINEMATIC,
+        localCsys=None,
+        u1=ON,
+        u2=ON,
+        ur3=ON)
+
+    region2 = a1.instances['Base-C'].sets['Set-Base-C']
+    a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    region1 = a1.sets['Ref_Point']
+    mdb.models[str('Model-{}'.format(n + 1))].RigidBody(name='Rigid',
+                                                        refPointRegion=region1,
+                                                        bodyRegion=region2)
+    
+    '''
+    
+
+   
+
+    # Interaction
+    mdb.models[str('Model-{}'.format(n + 1))].ContactProperty('IntProp-1')
+    mdb.models[str('Model-{}'.format(
+        n + 1))].interactionProperties['IntProp-1'].TangentialBehavior(
+            formulation=PENALTY,
+            directionality=ISOTROPIC,
+            slipRateDependency=OFF,
+            pressureDependency=OFF,
+            temperatureDependency=OFF,
+            dependencies=0,
+            table=((0.3, ), ),
+            shearStressLimit=None,
+            maximumElasticSlip=FRACTION,
+            fraction=0.005,
+            elasticSlipStiffness=None)
+    #: The interaction property "IntProp-1" has been created.
+    a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    region1 = a1.instances['Merged-Body-1'].surfaces['Surf-Bot-Mer']
+    a1 = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    region2 = a1.instances['Base-C'].surfaces['Top-Suf-BaseC']
+    mdb.models[str('Model-{}'.format(n + 1))].SurfaceToSurfaceContactStd(
+        name='contact_baseC_gripper',
+        createStepName='Initial',
+        master=region1,
+        slave=region2,
+        sliding=FINITE,
+        thickness=ON,
+        interactionProperty='IntProp-1',
+        adjustMethod=NONE,
+        initialClearance=OMIT,
+        datumAxis=None,
+        clearanceRegion=None)
 
     # Create Gravity Step
     # mdb.models[str('Model-{}'.format(n + 1))].StaticStep(name='Step-Gravity',
@@ -433,12 +511,24 @@ for n in range(instanceNum):
     #     createStepName='Step-Gravity',
     #     region=fixedFaceRegion,
     #     localCsys=None)
+
     # Create Pressure Step and Pressure Load
+
     InnerSurfCavityRegion = a.instances['Merged-Body-1'].surfaces[
         'Surf-Inner Cavity']
     mdb.models[str('Model-{}'.format(n + 1))].StaticStep(name='Step-Pressure',
                                                          previous='Initial',
                                                          nlgeom=ON)
+
+    #regionDef = mdb.models[str(
+    #    'Model-{}'.format(n + 1))].rootAssembly.sets['Ref_Point']
+    mdb.models[str(
+        'Model-{}'.format(n + 1))].fieldOutputRequests['F-Output-1'].setValues(
+            variables=('U','RF', 'CFORCE'),
+            region=MODEL,
+            sectionPoints=DEFAULT,
+            rebar=EXCLUDE)
+    
     fixedFace = a.instances['Merged-Body-1'].edges.findAt(
         ((0.0, wall_height / 2, 0.0), ), )
     fixedFaceRegion = a.Set(edges=fixedFace, name='Set-FixedFace')
@@ -491,7 +581,7 @@ for n in range(instanceNum):
     f = p.faces
     pickedRegions = f.getByBoundingBox(
         -9999, -9999, -9999, 9999, 9999,
-        9999)  #findAt(((0.0,wall_height/2,0.0)))
+        9999)  # findAt(((0.0,wall_height/2,0.0)))
     p.setMeshControls(regions=pickedRegions, elemShape=TRI)
     elemType1 = mesh.ElemType(elemCode=CPS8R, elemLibrary=STANDARD)
     elemType2 = mesh.ElemType(elemCode=CPS6M,
@@ -509,8 +599,10 @@ for n in range(instanceNum):
     p.seedPart(size=seedSize, deviationFactor=0.1, minSizeFactor=0.1)
     p.generateMesh()
     a.regenerate()
+    '''
     all_nodes = p.nodes
-    end_nodes = []
+    end_node =  []
+
     for node_count in all_nodes:
         xcoord = node_count.coordinates[0]
         ycoord = node_count.coordinates[1]
@@ -518,18 +610,66 @@ for n in range(instanceNum):
                                                        2) + 0.0001:
             end_nodes.append(node_count)
             break
+    
     good_left_nodes = mesh.MeshNodeArray(end_nodes)
     p.Set(nodes=good_left_nodes, name='Set-Node')
-    session.viewports['Viewport: 1'].setValues(displayedObject=a)
-    session.viewports['Viewport: 1'].view.setViewpoint(viewVector=(0, 0, 1),
-                                                       cameraUpVector=(0, 1,
-                                                                       0))
+    '''
+    # Boundary Fix base-C
+    
+    a = mdb.models[str('Model-{}'.format(n + 1))].rootAssembly
+    e1 = a.instances['Base-C'].edges
+    edges1 = e1.findAt(((base_length + 5, -5.5, 0), ), )
+    region = a.Set(edges=edges1, name='canh_fix_baseC')
+    mdb.models[str('Model-{}'.format(n + 1))].EncastreBC(name='BC-3', createStepName='Initial', 
+        region=region, localCsys=None)
+
+    # mesh base-C
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    f = p.faces
+    pickedRegions = f.getSequenceFromMask(mask=('[#1 ]', ), )
+    p.setMeshControls(regions=pickedRegions, elemShape=TRI)
+    elemType1 = mesh.ElemType(elemCode=CPS8R, elemLibrary=STANDARD)
+    elemType2 = mesh.ElemType(elemCode=CPS6M,
+                              elemLibrary=STANDARD,
+                              secondOrderAccuracy=OFF,
+                              distortionControl=DEFAULT)
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    f = p.faces
+    faces = f.getSequenceFromMask(mask=('[#1 ]', ), )
+    pickedRegions = (faces, )
+    p.setElementType(regions=pickedRegions, elemTypes=(elemType1, elemType2))
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    p.seedPart(size=1.0, deviationFactor=0.1, minSizeFactor=0.1)
+    p = mdb.models[str('Model-{}'.format(n + 1))].parts['Base-C']
+    p.generateMesh()
     session.viewports['Viewport: 1'].assemblyDisplay.setValues(
         loads=ON,
         bcs=ON,
         interactions=ON,
         predefinedFields=OFF,
         connectors=OFF)
+    
+    # Creat Node xuat ra phan luc
+    '''
+    all_node = p.nodes
+    end_node = []
+
+    for node_count in all_node:
+        xcoord = node_count.coordinates[0]
+        ycoord = node_count.coordinates[1]
+        if xcoord > (base_length + 5) - 0.0001 and ycoord < (-base_thickness*2) - 1.0001 :
+            end_node.append(node_count)
+            break     
+    good_left_nodes = mesh.MeshNodeArray(end_node)
+    p.Set(nodes=good_left_nodes, name='Set-Node')
+    
+    '''
+    regionDef=mdb.models[str('Model-{}'.format(n + 1))].rootAssembly.sets['canh_fix_baseC']
+    mdb.models[str('Model-{}'.format(n + 1))].historyOutputRequests['H-Output-1'].setValues(variables=(
+            'RF', ), region=regionDef, sectionPoints=DEFAULT, rebar=EXCLUDE)
+
+
+    # Create JOB
     jobName = 'Job-{}'.format(n + 1)
     modelName = 'Model-{}'.format(n + 1)
     gripperSimulation = mdb.Job(name=jobName,
@@ -556,14 +696,49 @@ for n in range(instanceNum):
                                 numCpus=CPUs,
                                 numDomains=CPUs,
                                 numGPUs=GPUs)
+
     gripperSimulation.submit()
     gripperSimulation.waitForCompletion()
     myOdb = visualization.openOdb(path=str('Job-{}'.format(n + 1)) + '.odb')
-    centerNSet = myOdb.rootAssembly.instances['MERGED-BODY-1'].nodeSets[
-        "SET-NODE"]
+    #centerNSet = myOdb.rootAssembly.instances['MERGED-BODY-1'].nodeSets["SET-NODE"]
+    #centerNSet = myOdb.rootAssembly.instances['MERGED-BODY-1'].nodeSets["SET-NODE"]
     frame = myOdb.steps['Step-Pressure'].frames[-1]
 
-    # Retrieve Y-displacement at the center of the plate.
+    # Data force
+    xy0 = xyPlot.XYDataFromHistory(odb=myOdb, 
+    outputVariableName='Reaction force: RF2 PI: BASE-C Node 11 in NSET CANH_FIX_BASEC', 
+    steps=('Step-Pressure', ), suppressQuery=True)
+    xy1 = xyPlot.XYDataFromHistory(odb=myOdb, 
+        outputVariableName='Reaction force: RF2 PI: BASE-C Node 22 in NSET CANH_FIX_BASEC', 
+        steps=('Step-Pressure', ), suppressQuery=True)
+    xy2 = xyPlot.XYDataFromHistory(odb=myOdb, 
+        outputVariableName='Reaction force: RF2 PI: BASE-C Node 61 in NSET CANH_FIX_BASEC', 
+        steps=('Step-Pressure', ), suppressQuery=True)
+    xy3 = sum((xy0, xy1, xy2, ), )
+    max_RF = max(xy3)  
+    ForcesFile.write(str(str(max_RF[1]) + "\n"))
+        
+    
+    #forceSubField = forceField.getSubset(region=Ref_Point)
+    #forceValues = forceField.values
+    '''
+    #for v in forceValues:
+        Node = "%d" %v.nodeLabel
+        RF_X="%6.4f" %v.data[0]
+        RF_Y="%6.4f" %v.data[1]
+        ForcesFile.write(str(RF_Y + "\n"))
+        break
+    
+        #print('Node = %d RF[x] = %6.4f, RF[y] = %6.4f' % (v.nodeLabel, v.data[0], v.data[1]))
+        
+        a = forceValue.data[1]
+        force = [a]
+        ForcesFile.write(str(str(force[0]) + "\n"))
+        break
+    
+        
+    '''
+    '''
 
     dispField = frame.fieldOutputs['U']
     dispSubField = dispField.getSubset(region=centerNSet)
@@ -571,6 +746,12 @@ for n in range(instanceNum):
     # disp = dispSubField.values[0].data[1]     # Get Y displacement
     disp = dispSubField.values[0].magnitude
     session.viewports['Viewport: 1'].setValues(displayedObject=myOdb)
+    f = open(str(result_dir + result_name + ".csv"), "a")
+    f.write(str(str(disp) + "\n"))
+    f.close()
+    '''
+    
 
-    resultFile.write(str(str(disp) + "\n"))
-resultFile.close()
+ForcesFile.close()
+print >> sys.__stdout__, ' Va A Van Okay :v '
+    

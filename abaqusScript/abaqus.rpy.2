@@ -1,0 +1,23 @@
+# -*- coding: mbcs -*-
+#
+# Abaqus/CAE Release 6.14-5 replay file
+# Internal Version: 2015_08_18-21.37.49 135153
+# Run by Admin on Mon Nov 23 13:42:54 2020
+#
+
+# from driverUtils import executeOnCaeGraphicsStartup
+# executeOnCaeGraphicsStartup()
+#: Executing "onCaeGraphicsStartup()" in the site directory ...
+from abaqus import *
+from abaqusConstants import *
+session.Viewport(name='Viewport: 1', origin=(1.11979, 1.1169), width=164.833, 
+    height=110.796)
+session.viewports['Viewport: 1'].makeCurrent()
+from driverUtils import executeOnCaeStartup
+executeOnCaeStartup()
+execfile('autoParametric2D.py', __main__.__dict__)
+#* _getWarningReply cannot be used with the -noGUI option
+#* File "autoParametric2D.py", line 13, in <module>
+#*     buttons=(YES, NO))
+#* File "SMAPyaModules\SMAPyaAbqPy.m\src\getWarningReply.py", line 14, in 
+#* getWarningReply
