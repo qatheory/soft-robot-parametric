@@ -21,7 +21,7 @@ class Instances(object):
         assembly.Instance(name=name, part=part.getPart(), dependent=ON)
 
     def translate(self, vector):
-        self.get().translate(instanceList=(self.name, ), vector=vector)
+        assembly.translate(instanceList=(self.name, ), vector=vector)
 
     def rotate(self, vector, angle):
         point1 = (0.0, 0.0, 0.0)
@@ -39,6 +39,9 @@ class Instances(object):
 
     def get(self):
         return assembly.instances[self.name]
+
+    def getName(self):
+        return self.name
 
 
 class Material(object):
@@ -203,6 +206,12 @@ class Object(object):
         print("added material")
         return "added material"
 
+    def selectSurfaceByPos(self, x, y, z):
+        baseFace = self.getPart().faces.findAt(((x, y, z),),)
+        surfaceName = 'Surface at {},{},{}'.format(x, y, z)
+        self.getPart().Surface(side1Faces=baseFace, name=surfaceName)
+        return self.getPart().surfaces[surfaceName]
+
 
 class BasePart(Object):
     def __init__(self, name, length=0.0, width=0.0, thickness=0.0):
@@ -231,11 +240,6 @@ class BasePart(Object):
 
         else:
             print("chua chon mat phang cho part {}".format(self.name))
-        return
-
-    def selectSurfaceByPos(self, x, y, z):
-        baseFace = self.getPart().faces.findAt(((x, y, z),),)
-        self.getPart().Surface(side1Faces=baseFace, name='Surface at {},{},{}'.format(x, y, z))
         return
 
     def drawSketch(self):
@@ -316,7 +320,56 @@ class MainPart(Object):
         self.getPart().CutExtrude(sketchPlane=self.getPart().surfaces[surfaceName].faces[0],
                                   sketchPlaneSide=SIDE1, sketchUpEdge=self.getPart().edges[34], sketchOrientation=TOP, sketch=cutTunnelSketch.get(), depth=self.tunnelHeight)
 
+    def getParameters(self):
+        return {
+            "length": self.length,
+            "wide": self.wide,
+            "height": self.height,
+            "chamberNum": self.chamberNum,
+            "chamberSize": self.chamberSize,
+            "chamberHeight": self.chamberHeight,
+            "chamberThickness": self.chamberThickness,
+            "innerHeight": self.innerHeight,
+            "space": self.space,
+            "tunnelWidth": self.tunnelWidth,
+            "tunnelHeight": self.tunnelHeight,
+            "tunnelLength": self.tunnelLength
+        }
 
+
+class GripperPart(Object):
+    def __init__(self, name, bodyPart, instances=[], original=SUPPRESS, keepIntersections=ON):
+        super(GripperPart, self).__init__(name)
+        self.parameters = bodyPart.getParameters()
+        self.createMergedPart(instances, original, keepIntersections)
+
+    def createMergedPart(self, instances, original, keepIntersections):
+        # print(list(map(lambda instance: instance.getName(), instances)))
+        assembly.InstanceFromBooleanMerge(
+            name=self.partName,
+            instances=(
+                list(map(lambda instance: instance.get(), instances))),
+            originalInstances=original,
+            keepIntersections=keepIntersections,
+            domain=GEOMETRY)
+
+    def getParameters(self):
+        return self.parameters
+
+    def getInnerCavitySurfaces(self):
+        print(self.parameters["chamberThickness"])
+        InnerSurfCavity = self.getPart().faces.getByBoundingBox(
+            self.parameters["chamberThickness"], 0.0, self.parameters["chamberThickness"],
+            self.parameters["length"] -
+            self.parameters["chamberThickness"], self.parameters["tunnelHeight"], self.parameters["wide"] -
+            self.parameters["chamberThickness"])
+        InnerSurfCavity += self.getPart().faces.getByBoundingBox(
+            self.parameters["chamberThickness"], 0.0, self.parameters["chamberThickness"],
+            self.parameters["length"] -
+            self.parameters["chamberThickness"], self.parameters["innerHeight"], self.parameters["wide"] - self.parameters["chamberThickness"])
+        self.getPart().Surface(side1Faces=InnerSurfCavity,
+                               name='Surf-Inner Cavity')
+        return self.getPart().surfaces['Surf-Inner Cavity']
 # Process code
 
 
@@ -326,13 +379,18 @@ Paper = Material("Paper", 7.5e-10, "paper")
 ElastosilSection = Section("Sec-Elastosil", Elastosil, "solid")
 PaperSection = Section("Sec-Paper", Paper, "shell", 0.1)
 
-Base = BasePart("Base-A", 10, 10, 1)
-Base.assignSection(ElastosilSection)
-Base.selectSurface("top")
+BaseA = BasePart("Base-A", 95, 10, 1)
+BaseA.assignSection(ElastosilSection)
+BaseA.selectSurface("bottom")
+BaseB = BasePart("Base-B", 95, 10, 1)
+BaseB.assignSection(ElastosilSection)
+
 Main = MainPart("Main", 95, 10, 10, 5, 15, 7, 5, 0.0, 1, 9, 4, 1)
 Main.assignSection(ElastosilSection)
-Base1 = Instances("Base-1", Base)
-Base1.translate((0.0, 0.0, -Base.getParameters()["thickness"]))
-Base2 = Instances("Base-2", Base)
-Base2.translate((0.0, 0.0, -Base.getParameters()["thickness"]*2))
+Base1 = Instances("Base-1", BaseA)
+Base1.translate((0.0, -BaseA.getParameters()["thickness"], 0.0))
+Base2 = Instances("Base-2", BaseB)
+Base2.translate((0.0, -BaseB.getParameters()["thickness"]*2, 0.0))
 Main1 = Instances("Main-1", Main)
+Gripper = GripperPart("Gripper", Main, [Base1, Base2, Main1])
+GripperInnerCavity = Gripper.getInnerCavitySurfaces()
