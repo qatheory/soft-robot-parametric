@@ -8,14 +8,37 @@ base_width = 5.0
 base_thickness = 0.5
 
 currentModel = mdb.models["Model-1"]
-assembly = currentModel.rootAssembly
+
+
+class RootAssembly(object):
+    def __init__(self):
+        self.assembly = currentModel.rootAssembly
+
+    def getAssembly(self):
+        return self.assembly
+
+    def createSet(self, surface, name):
+        # fixedFace = a.instances['Merged-Body-1'].faces.findAt(
+        #     ((0.0, base_width / 2, wall_height / 2), ), )
+        return self.assembly.Set(name=name, faces=surface)
+
+    def createFace(self, instance, x, y, z, name):
+        return self.assembly.instances[instance.getName()].faces.findAt(((x, y, z), ), )
+
+    def selectFace(self, instance, surface):
+        return self.assembly.instances[instance.getName()].surfaces[surface]
+
+
+Assembly = RootAssembly()
+assembly = Assembly.getAssembly()
 
 
 class Instances(object):
-    def __init__(self, name, part):
+    def __init__(self, name, part, create=True):
         self.name = name
         self.position = (0.0, 0.0, 0.0)
-        self.createInstance(name, part)
+        if(create == True):
+            self.createInstance(name, part)
 
     def createInstance(self, name, part):
         assembly.Instance(name=name, part=part.getPart(), dependent=ON)
@@ -163,6 +186,76 @@ class Sketch(object):
         return
 
 
+class Step(object):
+    def __init__(self, name, previousStep='Initial', nlgeom=ON):
+        self.name = name
+        self.previousStep = previousStep
+        if(self.previousStep != 'Initial'):
+            self.previousStep = previousStep.getName()
+        self.nlgeom = nlgeom
+        self.createStep()
+
+    def createStep(self):
+        currentModel.StaticStep(name=self.name,
+                                previous=self.previousStep,
+                                nlgeom=self.nlgeom)
+
+    def getName(self):
+        return self.name
+
+    def addGravity(self):
+        currentModel.Gravity(
+            name='Gravity',
+            createStepName=self.getName(),
+            comp2=-9810.0,
+            distributionType=UNIFORM,
+            field='',
+            region=None)
+
+    def addPressure(self, faces, value):
+        currentModel.Pressure(
+            name='Load-Pressure',
+            createStepName=self.name,
+            region=faces,
+            distributionType=UNIFORM,
+            field='',
+            magnitude=value,
+            amplitude=UNSET)
+
+    def addBC(self, region):
+        currentModel.EncastreBC(
+            name='Fixed End',
+            createStepName=self.getName(),
+            region=region,
+            localCsys=None)
+
+    def createContact(self, name, part, instance):
+        parameters = part.getParameters()
+        currentModel.ContactProperty(name)
+        currentModel.interactionProperties[name].TangentialBehavior(
+            formulation=FRICTIONLESS)
+        contactSurfaces = instance.get().faces.findAt(
+            ((parameters["chamberSize"], (parameters["height"] - parameters["chamberHeight"]) / 2 + parameters["chamberHeight"],
+              parameters["wide"]/2), ), )
+        for i in range(2, parameters["chamberNum"]):
+            contactSurfaces += instance.get().faces.findAt(
+                ((parameters["chamberSize"]*i + parameters["space"]*(i-1), (parameters["height"] - parameters["chamberHeight"]) / 2 + parameters["chamberHeight"],
+                  parameters["wide"]/2), ), )
+        for i in range(1, parameters["chamberNum"]):
+            contactSurfaces += instance.get().faces.findAt(
+                (((parameters["chamberSize"]+parameters["space"])*i, (parameters["height"] - parameters["chamberHeight"]) / 2 + parameters["chamberHeight"],
+                  parameters["wide"]/2), ), )
+        print(contactSurfaces)
+        contactFacesRegion = assembly.Surface(side1Faces=contactSurfaces,
+                                              name='Surf-Contact')
+        currentModel.SelfContactStd(
+            name=name,
+            createStepName=self.name,
+            surface=contactFacesRegion,
+            interactionProperty=name,
+            thickness=ON)
+
+
 class Object(object):
     def __init__(self, name):
         self.part = None
@@ -207,8 +300,13 @@ class Object(object):
         return "added material"
 
     def selectSurfaceByPos(self, x, y, z):
+        return self.getPart().faces.findAt(((x, y, z),),)
+
+    def createSurfaceByPos(self, x, y, z, name=None):
         baseFace = self.getPart().faces.findAt(((x, y, z),),)
         surfaceName = 'Surface at {},{},{}'.format(x, y, z)
+        if(name != None):
+            surfaceName = name
         self.getPart().Surface(side1Faces=baseFace, name=surfaceName)
         return self.getPart().surfaces[surfaceName]
 
@@ -353,6 +451,22 @@ class GripperPart(Object):
             keepIntersections=keepIntersections,
             domain=GEOMETRY)
 
+    def setPaperSkin(self, paperSurface, section):
+        # paperSurface = self.getPart().faces.findAt(
+        #     ((self.parameters["length"] / 2, -thickness,  self.parameters["wide"] / 2), ), )
+        self.getPart().Skin(faces=paperSurface, name='Skin-Paper')
+        paperRegion = self.getPart().Set(skinFaces=(('Skin-Paper', paperSurface), ),
+                                         name='Set-Skin')
+        self.getPart().SectionAssignment(region=paperRegion,
+                                         sectionName=section.getName(),
+                                         offset=0.0,
+                                         offsetType=MIDDLE_SURFACE,
+                                         offsetField='',
+                                         thicknessAssignment=FROM_SECTION)
+
+    def defineInstance(self, part):
+        return Instances("{}-1".format(self.partName), part)
+
     def getParameters(self):
         return self.parameters
 
@@ -381,7 +495,6 @@ PaperSection = Section("Sec-Paper", Paper, "shell", 0.1)
 
 BaseA = BasePart("Base-A", 95, 10, 1)
 BaseA.assignSection(ElastosilSection)
-BaseA.selectSurface("bottom")
 BaseB = BasePart("Base-B", 95, 10, 1)
 BaseB.assignSection(ElastosilSection)
 
@@ -392,5 +505,28 @@ Base1.translate((0.0, -BaseA.getParameters()["thickness"], 0.0))
 Base2 = Instances("Base-2", BaseB)
 Base2.translate((0.0, -BaseB.getParameters()["thickness"]*2, 0.0))
 Main1 = Instances("Main-1", Main)
+
 Gripper = GripperPart("Gripper", Main, [Base1, Base2, Main1])
+
+paperSurface = Gripper.selectSurfaceByPos(Main.getParameters(
+)["length"] / 2, -BaseA.getParameters()["thickness"], Main.getParameters(
+)["wide"] / 2)
+
+Gripper.setPaperSkin(paperSurface, PaperSection)
+GripperInstance = Gripper.defineInstance(Gripper)
+
+GravityStep = Step("gravity")
+GravityStep.addGravity()
 GripperInnerCavity = Gripper.getInnerCavitySurfaces()
+
+fixedFace = Assembly.createFace(GripperInstance, 0.0, Main.getParameters(
+)["height"]/2, Main.getParameters()["wide"]/2, "BCFaceFixed")
+fixedSet = Assembly.createSet(fixedFace, "fixedSet")
+
+GravityStep.addBC(fixedSet)
+
+PressureStep = Step("pressure", GravityStep)
+InnerCavitySurface = Assembly.selectFace(GripperInstance, "Surf-Inner Cavity")
+PressureStep.addPressure(InnerCavitySurface, 50)
+PressureStep.createContact("Chamber Walls", Main, GripperInstance)
+assembly.regenerate()
