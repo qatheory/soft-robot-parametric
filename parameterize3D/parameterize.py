@@ -399,24 +399,34 @@ class MainPart(Object):
         return (x-self.length/2, y-self.height/2)
 
     def extrudeCut(self):
-        extrudeCutFace = self.getPart().faces.findAt(
-            ((self.length/2, 0.0, self.wide/2),),)
-        surfaceName = 'Bottom of {}'.format(self.name)
-        self.getPart().Surface(side1Faces=extrudeCutFace, name=surfaceName)
-        transform = self.getPart().MakeSketchTransform(sketchPlane=self.getPart().surfaces[surfaceName].faces[0], sketchUpEdge=self.getPart().edges[34],
-                                                       sketchPlaneSide=SIDE1, sketchOrientation=TOP, origin=(0.0, 0.0, 0.0))
-        cutChamberSketch = Sketch("wallCutSketch", transform)
+        # extrudeCutFace = self.getPart().faces.findAt(
+        #     ((self.length/2, 0.0, self.wide/2),),)
+        # surfaceName = 'Bottom of {}'.format(self.name)
+        # self.getPart().Surface(side1Faces=extrudeCutFace, name=surfaceName)
+
+        chamberCutPlane = self.getPart().faces.findAt(((0.001, 0, 0.001),),)[0]
+        chamberCutEdge = self.getPart().edges.findAt(
+            ((self.length/2, 0, self.wide),),)[0]
+        chamberCutTransform = self.getPart().MakeSketchTransform(sketchPlane=chamberCutPlane, sketchUpEdge=chamberCutEdge,
+                                                                 sketchPlaneSide=SIDE1, sketchOrientation=TOP, origin=(0.0, 0.0, 0.0))
+        cutChamberSketch = Sketch("wallCutSketch", chamberCutTransform)
         for i in range(self.chamberNum):
             cutChamberSketch.get().rectangle((self.chamberThickness+self.chamberSize*i+self.space*i, self.chamberThickness),
                                              (self.chamberSize*(i+1) + self.space*i - self.chamberThickness, self.wide - self.chamberThickness))
+        self.getPart().CutExtrude(sketchPlane=chamberCutPlane,
+                                  sketchPlaneSide=SIDE1, sketchUpEdge=chamberCutEdge, sketchOrientation=TOP, sketch=cutChamberSketch.get(), depth=self.innerHeight)
 
-        cutTunnelSketch = Sketch("wallTunnelSketch", transform)
+        tunnelCutPlane = self.getPart().faces.findAt(((0.001, 0, 0.001),),)[0]
+        tunnelCutEdge = self.getPart().edges.findAt(
+            ((self.length/2, 0, self.wide),),)[0]
+        print(tunnelCutEdge)
+        tunnelCutTransform = self.getPart().MakeSketchTransform(sketchPlane=tunnelCutPlane, sketchUpEdge=tunnelCutEdge,
+                                                                sketchPlaneSide=SIDE1, sketchOrientation=TOP, origin=(0.0, 0.0, 0.0))
+        cutTunnelSketch = Sketch("MainTunnelSketch", tunnelCutTransform)
         cutTunnelSketch.get().rectangle((self.chamberThickness, self.wide/2-self.tunnelWidth/2),
-                                        (self.length - self.chamberThickness, self.wide/2+self.tunnelWidth/2))
-        self.getPart().CutExtrude(sketchPlane=self.getPart().surfaces[surfaceName].faces[0],
-                                  sketchPlaneSide=SIDE1, sketchUpEdge=self.getPart().edges[34], sketchOrientation=TOP, sketch=cutChamberSketch.get(), depth=self.innerHeight)
-        self.getPart().CutExtrude(sketchPlane=self.getPart().surfaces[surfaceName].faces[0],
-                                  sketchPlaneSide=SIDE1, sketchUpEdge=self.getPart().edges[34], sketchOrientation=TOP, sketch=cutTunnelSketch.get(), depth=self.tunnelHeight)
+                                        (self.length - self.chamberThickness*3, self.wide/2+self.tunnelWidth/2))
+        self.getPart().CutExtrude(sketchPlane=tunnelCutPlane,
+                                  sketchPlaneSide=SIDE1, sketchUpEdge=tunnelCutEdge, sketchOrientation=TOP, sketch=cutTunnelSketch.get(), depth=self.tunnelHeight)
 
     def getParameters(self):
         return {
@@ -440,6 +450,7 @@ class GripperPart(Object):
         super(GripperPart, self).__init__(name)
         self.parameters = bodyPart.getParameters()
         self.createMergedPart(instances, original, keepIntersections)
+        self.innerCavity = "{}_Cavity".format(name)
 
     def createMergedPart(self, instances, original, keepIntersections):
         # print(list(map(lambda instance: instance.getName(), instances)))
@@ -452,8 +463,7 @@ class GripperPart(Object):
             domain=GEOMETRY)
 
     def setPaperSkin(self, paperSurface, section):
-        # paperSurface = self.getPart().faces.findAt(
-        #     ((self.parameters["length"] / 2, -thickness,  self.parameters["wide"] / 2), ), )
+
         self.getPart().Skin(faces=paperSurface, name='Skin-Paper')
         paperRegion = self.getPart().Set(skinFaces=(('Skin-Paper', paperSurface), ),
                                          name='Set-Skin')
@@ -482,8 +492,31 @@ class GripperPart(Object):
             self.parameters["length"] -
             self.parameters["chamberThickness"], self.parameters["innerHeight"], self.parameters["wide"] - self.parameters["chamberThickness"])
         self.getPart().Surface(side1Faces=InnerSurfCavity,
-                               name='Surf-Inner Cavity')
-        return self.getPart().surfaces['Surf-Inner Cavity']
+                               name=self.innerCavity)
+        return self.getPart().surfaces[self.innerCavity]
+
+    def getInnerCavity(self):
+        return self.innerCavity
+
+    def mesh(self, seedSize):
+        region = self.getPart().cells.getByBoundingBox(-9999, -
+                                                       9999, -9999, 9999, 9999, 9999)
+        self.getPart().setMeshControls(regions=region, elemShape=TET, technique=FREE)
+        elemType1 = mesh.ElemType(elemCode=C3D20R, elemLibrary=STANDARD)
+        elemType2 = mesh.ElemType(elemCode=C3D15, elemLibrary=STANDARD)
+        elemType3 = mesh.ElemType(elemCode=C3D10H, elemLibrary=STANDARD)
+        self.getPart().setElementType(regions=self.getPart().sets['Main_set'],
+                                      elemTypes=(elemType1, elemType2, elemType3))
+        self.getPart().setElementType(regions=self.getPart().sets['Base-A_set'],
+                                      elemTypes=(elemType1, elemType2, elemType3))
+        self.getPart().setElementType(regions=self.getPart().sets['Base-B_set'],
+                                      elemTypes=(elemType1, elemType2, elemType3))
+        self.getPart().seedPart(size=seedSize, deviationFactor=0.1, minSizeFactor=0.1)
+        self.getPart().generateMesh()
+        elemType4 = mesh.ElemType(elemCode=S8R, elemLibrary=STANDARD)
+        elemType5 = mesh.ElemType(elemCode=STRI65, elemLibrary=STANDARD)
+        skinRegions = self.getPart().sets['Set-Skin']
+        self.getPart().setElementType(regions=skinRegions, elemTypes=(elemType4, elemType5))
 # Process code
 
 
@@ -498,7 +531,7 @@ BaseA.assignSection(ElastosilSection)
 BaseB = BasePart("Base-B", 95, 10, 1)
 BaseB.assignSection(ElastosilSection)
 
-Main = MainPart("Main", 95, 10, 10, 5, 15, 7, 5, 0.0, 1, 9, 4, 1)
+Main = MainPart("Main", 31, 10, 10, 2, 15, 7, 2, 0.0, 1, 9, 5, 1)
 Main.assignSection(ElastosilSection)
 Base1 = Instances("Base-1", BaseA)
 Base1.translate((0.0, -BaseA.getParameters()["thickness"], 0.0))
@@ -526,7 +559,33 @@ fixedSet = Assembly.createSet(fixedFace, "fixedSet")
 GravityStep.addBC(fixedSet)
 
 PressureStep = Step("pressure", GravityStep)
-InnerCavitySurface = Assembly.selectFace(GripperInstance, "Surf-Inner Cavity")
-PressureStep.addPressure(InnerCavitySurface, 50)
+InnerCavitySurface = Assembly.selectFace(
+    GripperInstance, Gripper.getInnerCavity())
+PressureStep.addPressure(InnerCavitySurface, 0.05)
 PressureStep.createContact("Chamber Walls", Main, GripperInstance)
 assembly.regenerate()
+Gripper.mesh(5)
+mdb.Job(name="Job",
+        model=currentModel,
+        description='',
+        type=ANALYSIS,
+        atTime=None,
+        waitMinutes=0,
+        waitHours=0,
+        queue=None,
+        memory=90,
+        memoryUnits=PERCENTAGE,
+        getMemoryFromAnalysis=True,
+        explicitPrecision=SINGLE,
+        nodalOutputPrecision=SINGLE,
+        echoPrint=OFF,
+        modelPrint=OFF,
+        contactPrint=OFF,
+        historyPrint=OFF,
+        userSubroutine='',
+        scratch='',
+        resultsFormat=ODB,
+        multiprocessingMode=DEFAULT,
+        numCpus=1,
+        numGPUs=0)
+mdb.jobs["Job"].submit(consistencyChecking=OFF)
